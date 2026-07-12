@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Play, ArrowDown, Star } from 'lucide-react';
+import { Play, ArrowDown, Star, UtensilsCrossed } from 'lucide-react';
 
 const PizzaScene = lazy(() => import('./three/PizzaScene').then((m) => ({ default: m.PizzaScene })));
 
@@ -86,11 +86,11 @@ export function HeroSection() {
         transition={{ delay: 1.3, duration: 0.7 }}
       >
         <a
-          href="tel:+923315633133"
+          href="#menu"
           className="magnetic-btn group flex items-center gap-2 rounded-full bg-ember px-6 py-3.5 font-sans text-sm font-semibold text-cream shadow-[0_8px_40px_-8px_rgba(255,77,0,0.6)] transition-transform hover:scale-105 sm:px-8"
         >
-          <Phone className="h-4 w-4" />
-          Order Now
+          <UtensilsCrossed className="h-4 w-4" />
+          Browse Menu
         </a>
         <a
           href="#about"

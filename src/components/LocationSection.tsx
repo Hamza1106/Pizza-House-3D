@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Clock, Car, Utensils, Bike } from 'lucide-react';
+import { MapPin, Clock, Car, Utensils, Bike, UtensilsCrossed } from 'lucide-react';
 
 const services = [
   { icon: Utensils, title: 'Dine In', desc: 'Premium seating experience' },
@@ -66,12 +66,12 @@ export function LocationSection() {
               </div>
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ember/15 ring-1 ring-ember/20">
-                  <Phone className="h-5 w-5 text-amber" />
+                  <UtensilsCrossed className="h-5 w-5 text-amber" />
                 </div>
                 <div>
-                  <p className="font-sans text-[10px] uppercase tracking-wider text-white/40">Call to Order</p>
-                  <a href="tel:+923315633133" className="font-display text-base font-semibold text-cream transition-colors hover:text-amber">
-                    +92 331 5633133
+                  <p className="font-sans text-[10px] uppercase tracking-wider text-white/40">Order Online</p>
+                  <a href="#menu" className="font-display text-base font-semibold text-cream transition-colors hover:text-amber">
+                    Browse our menu
                   </a>
                 </div>
               </div>
@@ -106,11 +106,11 @@ export function LocationSection() {
             </div>
 
             <a
-              href="tel:+923315633133"
+              href="#menu"
               className="magnetic-btn flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-ember to-amber px-8 py-4 font-sans text-sm font-semibold text-cream shadow-[0_8px_40px_-8px_rgba(255,77,0,0.6)] transition-transform hover:scale-105"
             >
-              <Phone className="h-4 w-4" />
-              Call to Order Now
+              <UtensilsCrossed className="h-4 w-4" />
+              Browse Menu
             </a>
           </motion.div>
         </div>

@@ -1,4 +1,4 @@
-import { Phone, MapPin, Instagram, Facebook } from 'lucide-react';
+import { MapPin, Instagram, Facebook, UtensilsCrossed } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -52,8 +52,8 @@ export function Footer() {
             <p className="mb-4 font-sans text-[10px] uppercase tracking-[0.25em] text-amber">Contact</p>
             <ul className="space-y-3">
               <li>
-                <a href="tel:+923315633133" className="flex items-center gap-2 font-sans text-sm text-white/50 transition-colors hover:text-amber">
-                  <Phone className="h-4 w-4" /> +92 331 5633133
+                <a href="#menu" className="flex items-center gap-2 font-sans text-sm text-white/50 transition-colors hover:text-amber">
+                  <UtensilsCrossed className="h-4 w-4" /> Browse our menu online
                 </a>
               </li>
               <li className="flex items-start gap-2 font-sans text-sm text-white/50">

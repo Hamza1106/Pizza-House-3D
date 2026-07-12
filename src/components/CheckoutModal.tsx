@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, User, Phone, MapPin, ShieldCheck, ArrowRight, ArrowLeft, Landmark, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Mail, User, Phone, MapPin, ShieldCheck, ArrowRight, ArrowLeft, Landmark, Banknote, Loader2, CheckCircle2, Lock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { formatPKR } from '../data/menu';
 
 type PaymentMethod = 'bank' | 'cod';
-type Step = 'details' | 'verify' | 'payment' | 'processing' | 'success';
+type Step = 'auth_gate' | 'details' | 'verify' | 'payment' | 'processing' | 'success';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAuthRequired: () => void;
 }
 
 interface OrderResult {
@@ -21,8 +24,28 @@ interface OrderResult {
   total: number;
 }
 
-export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function sendEmail(payload: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Email send failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModalProps) {
   const { lines, subtotal, clear } = useCart();
+  const { user } = useAuth();
 
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState('');
@@ -32,9 +55,11 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const [otp, setOtp] = useState(['', '', '', '']);
   const [sentOtp, setSentOtp] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
+  const [emailError, setEmailError] = useState('');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const deliveryFee = 150;
@@ -47,34 +72,52 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }
   }, [resendTimer]);
 
-  // reset when closed
+  // Pre-fill email when user is logged in
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+  }, [user, email]);
+
+  // Reset when closed
   useEffect(() => {
     if (!isOpen) {
       const t = setTimeout(() => {
         setStep('details');
-        setName('');
-        setEmail('');
-        setPhone('');
-        setAddress('');
         setOtp(['', '', '', '']);
         setSentOtp('');
         setOtpError('');
         setPayment(null);
         setOrder(null);
+        setEmailError('');
       }, 400);
       return () => clearTimeout(t);
     }
   }, [isOpen]);
 
+  // Gate: if not logged in, redirect to auth
+  useEffect(() => {
+    if (isOpen && !user && step === 'details') {
+      onAuthRequired();
+    }
+  }, [isOpen, user, step, onAuthRequired]);
+
   const detailsValid = name.trim() && email.trim() && phone.trim() && address.trim();
 
-  const sendOtp = () => {
+  const sendOtp = async () => {
+    setOtpSending(true);
+    setEmailError('');
     const code = String(Math.floor(1000 + Math.random() * 9000));
     setSentOtp(code);
-    setResendTimer(30);
-    setStep('verify');
-    // In a real app this would be sent via backend email service.
-    // For this front-end demo we surface it as a hint.
+    try {
+      await sendEmail({ type: 'verification', to: email, code });
+      setResendTimer(30);
+      setStep('verify');
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Failed to send verification email. Please try again.');
+    } finally {
+      setOtpSending(false);
+    }
   };
 
   const handleOtpChange = (i: number, val: string) => {
@@ -101,24 +144,64 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }
   };
 
-  const placeOrder = () => {
-    if (!payment) return;
+  const placeOrder = async () => {
+    if (!payment || !user) return;
     setStep('processing');
-    setTimeout(() => {
-      const orderNumber = 'PT-' + Math.floor(100000 + Math.random() * 900000);
-      const estimatedMinutes = 35 + Math.floor(Math.random() * 20);
-      setOrder({
-        orderNumber,
-        estimatedMinutes,
-        email,
-        name,
-        paymentMethod: payment,
-        total,
+
+    const orderNumber = 'PT-' + Math.floor(100000 + Math.random() * 900000);
+    const estimatedMinutes = 35 + Math.floor(Math.random() * 20);
+
+    // Save to Supabase
+    const { error: dbError } = await supabase.from('orders').insert({
+      order_number: orderNumber,
+      items: lines.map((l) => ({ id: l.item.id, name: l.item.name, price: l.item.price, qty: l.qty })),
+      subtotal,
+      delivery_fee: deliveryFee,
+      total,
+      customer_name: name,
+      customer_email: email,
+      customer_phone: phone,
+      delivery_address: address,
+      payment_method: payment,
+      estimated_minutes: estimatedMinutes,
+    });
+
+    if (dbError) {
+      setStep('payment');
+      setEmailError('Failed to save order: ' + dbError.message);
+      return;
+    }
+
+    // Send confirmation email
+    try {
+      await sendEmail({
+        type: 'confirmation',
+        to: email,
+        orderDetails: {
+          orderNumber,
+          name,
+          items: lines.map((l) => ({ name: l.item.name, qty: l.qty, price: l.item.price })),
+          subtotal,
+          deliveryFee,
+          total,
+          paymentMethod: payment,
+          estimatedMinutes,
+          address,
+        },
       });
-      setStep('success');
-      clear();
-    }, 2600);
+    } catch {
+      // Order saved but email failed — still show success
+      console.error('Confirmation email failed');
+    }
+
+    setOrder({ orderNumber, estimatedMinutes, email, name, paymentMethod: payment, total });
+    setStep('success');
+    clear();
   };
+
+  if (!user) {
+    return null;
+  }
 
   const inputClass =
     'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 pl-11 font-sans text-sm text-cream placeholder-white/30 outline-none transition-colors focus:border-amber/50 focus:bg-white/[0.07]';
@@ -143,10 +226,8 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* glow */}
               <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-ember/20 blur-3xl" />
 
-              {/* close */}
               <button
                 onClick={onClose}
                 className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-white/60 transition-colors hover:border-ember/40 hover:text-ember"
@@ -203,14 +284,26 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       </div>
                     </div>
 
+                    {emailError && (
+                      <p className="mt-3 rounded-xl border border-ember/20 bg-ember/10 px-4 py-2.5 font-sans text-xs text-ember">
+                        {emailError}
+                      </p>
+                    )}
+
                     <button
-                      disabled={!detailsValid}
+                      disabled={!detailsValid || otpSending}
                       onClick={sendOtp}
                       className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-ember to-amber px-6 py-3.5 font-sans text-sm font-bold text-cream shadow-[0_8px_30px_-8px_rgba(255,77,0,0.6)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                     >
-                      Continue to Verification
-                      <ArrowRight className="h-4 w-4" />
+                      {otpSending ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Sending code…</>
+                      ) : (
+                        <>Continue to Verification <ArrowRight className="h-4 w-4" /></>
+                      )}
                     </button>
+                    <p className="mt-3 flex items-center justify-center gap-1.5 font-sans text-[10px] text-white/30">
+                      <Lock className="h-3 w-3" /> A verification code will be sent to your email
+                    </p>
                   </div>
                 )}
 
@@ -228,13 +321,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     <p className="mb-6 font-sans text-sm text-white/40">
                       We sent a 4-digit code to <span className="text-cream">{email}</span>
                     </p>
-
-                    {/* demo hint banner */}
-                    <div className="mb-5 rounded-xl border border-amber/20 bg-amber/10 px-4 py-2.5">
-                      <p className="font-sans text-xs text-amber">
-                        Demo mode: your code is <span className="font-bold tracking-widest">{sentOtp}</span>
-                      </p>
-                    </div>
 
                     <div className="mb-4 flex justify-center gap-3">
                       {otp.map((digit, i) => (
@@ -333,7 +419,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       </button>
                     </div>
 
-                    {/* bank details */}
                     {payment === 'bank' && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -353,7 +438,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       </motion.div>
                     )}
 
-                    {/* order summary */}
                     <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-white/40">Order Summary</p>
                       <div className="space-y-1.5">
@@ -373,6 +457,12 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                         </div>
                       </div>
                     </div>
+
+                    {emailError && (
+                      <p className="mb-3 rounded-xl border border-ember/20 bg-ember/10 px-4 py-2.5 font-sans text-xs text-ember">
+                        {emailError}
+                      </p>
+                    )}
 
                     <button
                       disabled={!payment}
@@ -427,7 +517,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       Thank you, {order.name.split(' ')[0]}! Your delicious order is being prepared.
                     </motion.p>
 
-                    {/* order details card */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -454,7 +543,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       </div>
                     </motion.div>
 
-                    {/* email confirmation note */}
                     <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber/20 bg-amber/10 px-4 py-2.5">
                       <Mail className="h-4 w-4 text-amber" />
                       <p className="font-sans text-xs text-amber">
@@ -462,7 +550,6 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                       </p>
                     </div>
 
-                    {/* estimated time progress bar */}
                     <div className="mt-6 w-full">
                       <div className="mb-2 flex justify-between font-sans text-[10px] uppercase tracking-wider text-white/40">
                         <span>Preparing</span>
