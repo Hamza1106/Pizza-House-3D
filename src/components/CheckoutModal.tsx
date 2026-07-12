@@ -27,6 +27,8 @@ interface OrderResult {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+const DEMO_EMAIL = 'hamzaqureshi0128@gmail.com';
+
 async function sendEmail(payload: Record<string, unknown>) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
     method: 'POST',
@@ -117,14 +119,15 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
       return;
     }
 
-    // Send confirmation email
+    // Send confirmation email to demo address (Resend free plan limitation)
     try {
       await sendEmail({
         type: 'confirmation',
-        to: email,
+        to: DEMO_EMAIL,
         orderDetails: {
           orderNumber,
           name,
+          customerEmail: email,
           items: lines.map((l) => ({ name: l.item.name, qty: l.qty, price: l.item.price })),
           subtotal,
           deliveryFee,
@@ -300,24 +303,29 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                       </button>
                     </div>
 
-                    {payment === 'bank' && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="mb-6 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4"
-                      >
-                        <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-amber">Bank Details</p>
-                        <div className="space-y-1.5 font-sans text-xs text-white/60">
-                          <p>Bank: <span className="text-cream">Habib Bank Limited (HBL)</span></p>
-                          <p>Account: <span className="text-cream">Pizza Town Sukkur</span></p>
-                          <p>Account #: <span className="text-cream">0012-3456789-001</span></p>
-                          <p>IBAN: <span className="text-cream">PK36 HABB 0000 1234 5678 9001</span></p>
-                        </div>
-                        <p className="mt-3 font-sans text-[10px] text-white/30">
-                          Please transfer the total amount and keep your receipt. Your order will be confirmed once payment is verified.
-                        </p>
-                      </motion.div>
-                    )}
+                    <AnimatePresence initial={false}>
+                      {payment === 'bank' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mb-6 overflow-hidden"
+                        >
+                          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-amber">Bank Details</p>
+                            <div className="space-y-1.5 font-sans text-xs text-white/60">
+                              <p>Bank: <span className="text-cream">Habib Bank Limited (HBL)</span></p>
+                              <p>Account: <span className="text-cream">Pizza Town Sukkur</span></p>
+                              <p>Account #: <span className="text-cream">0012-3456789-001</span></p>
+                              <p>IBAN: <span className="text-cream">PK36 HABB 0000 1234 5678 9001</span></p>
+                            </div>
+                            <p className="mt-3 font-sans text-[10px] text-white/30">
+                              Please transfer the total amount and keep your receipt. Your order will be confirmed once payment is verified.
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-white/40">Order Summary</p>
