@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, User, Phone, MapPin, ShieldCheck, ArrowRight, ArrowLeft, Landmark, Banknote, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import { X, Mail, User, Phone, MapPin, ArrowRight, Landmark, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { formatPKR } from '../data/menu';
 
 type PaymentMethod = 'bank' | 'cod';
-type Step = 'auth_gate' | 'details' | 'verify' | 'payment' | 'processing' | 'success';
+type Step = 'auth_gate' | 'details' | 'payment' | 'processing' | 'success';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -52,25 +52,13 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [sentOtp, setSentOtp] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpSending, setOtpSending] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
   const [payment, setPayment] = useState<PaymentMethod | null>(null);
   const [order, setOrder] = useState<OrderResult | null>(null);
   const [emailError, setEmailError] = useState('');
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
 
   const deliveryFee = 150;
   const total = subtotal + deliveryFee;
-
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const t = setTimeout(() => setResendTimer((p) => p - 1), 1000);
-      return () => clearTimeout(t);
-    }
-  }, [resendTimer]);
 
   // Pre-fill email when user is logged in
   useEffect(() => {
@@ -83,10 +71,7 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
   useEffect(() => {
     if (!isOpen) {
       const t = setTimeout(() => {
-        setStep('details');
-        setOtp(['', '', '', '']);
-        setSentOtp('');
-        setOtpError('');
+          setStep('details');
         setPayment(null);
         setOrder(null);
         setEmailError('');
@@ -103,46 +88,6 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
   }, [isOpen, user, step, onAuthRequired]);
 
   const detailsValid = name.trim() && email.trim() && phone.trim() && address.trim();
-
-  const sendOtp = async () => {
-    setOtpSending(true);
-    setEmailError('');
-    const code = String(Math.floor(1000 + Math.random() * 9000));
-    setSentOtp(code);
-    try {
-      await sendEmail({ type: 'verification', to: email, code });
-      setResendTimer(30);
-      setStep('verify');
-    } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Failed to send verification email. Please try again.');
-    } finally {
-      setOtpSending(false);
-    }
-  };
-
-  const handleOtpChange = (i: number, val: string) => {
-    if (!/^\d?$/.test(val)) return;
-    const next = [...otp];
-    next[i] = val;
-    setOtp(next);
-    setOtpError('');
-    if (val && i < 3) otpRefs.current[i + 1]?.focus();
-  };
-
-  const handleOtpKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otp[i] && i > 0) {
-      otpRefs.current[i - 1]?.focus();
-    }
-  };
-
-  const verifyOtp = () => {
-    const entered = otp.join('');
-    if (entered === sentOtp) {
-      setStep('payment');
-    } else {
-      setOtpError('Incorrect code. Please try again.');
-    }
-  };
 
   const placeOrder = async () => {
     if (!payment || !user) return;
@@ -240,7 +185,7 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                 {/* === STEP: DETAILS === */}
                 {step === 'details' && (
                   <div className="p-7">
-                    <p className="mb-1 font-sans text-[10px] uppercase tracking-[0.3em] text-amber">Step 1 of 3</p>
+                    <p className="mb-1 font-sans text-[10px] uppercase tracking-[0.3em] text-amber">Step 1 of 2</p>
                     <h3 className="mb-1 font-display text-2xl font-bold text-cream">Delivery Details</h3>
                     <p className="mb-6 font-sans text-sm text-white/40">Where should we bring your feast?</p>
 
@@ -291,75 +236,11 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                     )}
 
                     <button
-                      disabled={!detailsValid || otpSending}
-                      onClick={sendOtp}
+                      disabled={!detailsValid}
+                      onClick={() => setStep('payment')}
                       className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-ember to-amber px-6 py-3.5 font-sans text-sm font-bold text-cream shadow-[0_8px_30px_-8px_rgba(255,77,0,0.6)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
                     >
-                      {otpSending ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Sending code…</>
-                      ) : (
-                        <>Continue to Verification <ArrowRight className="h-4 w-4" /></>
-                      )}
-                    </button>
-                    <p className="mt-3 flex items-center justify-center gap-1.5 font-sans text-[10px] text-white/30">
-                      <Lock className="h-3 w-3" /> A verification code will be sent to your email
-                    </p>
-                  </div>
-                )}
-
-                {/* === STEP: VERIFY === */}
-                {step === 'verify' && (
-                  <div className="p-7">
-                    <button
-                      onClick={() => setStep('details')}
-                      className="mb-4 flex items-center gap-1 font-sans text-xs text-white/40 transition-colors hover:text-amber"
-                    >
-                      <ArrowLeft className="h-3 w-3" /> Back
-                    </button>
-                    <p className="mb-1 font-sans text-[10px] uppercase tracking-[0.3em] text-amber">Step 2 of 3</p>
-                    <h3 className="mb-1 font-display text-2xl font-bold text-cream">Verify Your Email</h3>
-                    <p className="mb-6 font-sans text-sm text-white/40">
-                      We sent a 4-digit code to <span className="text-cream">{email}</span>
-                    </p>
-
-                    <div className="mb-4 flex justify-center gap-3">
-                      {otp.map((digit, i) => (
-                        <input
-                          key={i}
-                          ref={(el) => { otpRefs.current[i] = el; }}
-                          className="h-16 w-14 rounded-xl border border-white/15 bg-white/5 text-center font-display text-2xl font-bold text-cream outline-none transition-colors focus:border-amber/60 focus:bg-white/10"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(i, e.target.value)}
-                          onKeyDown={(e) => handleOtpKey(i, e)}
-                          autoFocus={i === 0}
-                        />
-                      ))}
-                    </div>
-
-                    {otpError && <p className="mb-3 text-center font-sans text-xs text-ember">{otpError}</p>}
-
-                    <div className="mb-6 text-center">
-                      {resendTimer > 0 ? (
-                        <p className="font-sans text-xs text-white/40">Resend code in {resendTimer}s</p>
-                      ) : (
-                        <button
-                          onClick={sendOtp}
-                          className="font-sans text-xs text-amber transition-colors hover:text-ember"
-                        >
-                          Resend code
-                        </button>
-                      )}
-                    </div>
-
-                    <button
-                      disabled={otp.join('').length !== 4}
-                      onClick={verifyOtp}
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-ember to-amber px-6 py-3.5 font-sans text-sm font-bold text-cream shadow-[0_8px_30px_-8px_rgba(255,77,0,0.6)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      Verify & Continue
+                      Continue to Payment <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
                 )}
@@ -368,12 +249,12 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                 {step === 'payment' && (
                   <div className="p-7">
                     <button
-                      onClick={() => setStep('verify')}
+                      onClick={() => setStep('details')}
                       className="mb-4 flex items-center gap-1 font-sans text-xs text-white/40 transition-colors hover:text-amber"
                     >
-                      <ArrowLeft className="h-3 w-3" /> Back
+                      <ArrowRight className="h-3 w-3 rotate-180" /> Back
                     </button>
-                    <p className="mb-1 font-sans text-[10px] uppercase tracking-[0.3em] text-amber">Step 3 of 3</p>
+                    <p className="mb-1 font-sans text-[10px] uppercase tracking-[0.3em] text-amber">Step 2 of 2</p>
                     <h3 className="mb-1 font-display text-2xl font-bold text-cream">Payment Method</h3>
                     <p className="mb-6 font-sans text-sm text-white/40">Choose how you'd like to pay</p>
 
