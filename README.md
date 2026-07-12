@@ -33,11 +33,11 @@ http://localhost:5173
 
 🛠 Tech Stack
 
-React
-Vite
-JavaScript
-Tailwind CSS
-Framer Motion (if used)
+React |
+Vite |
+JavaScript | 
+Tailwind CSS | 
+Framer Motion (if used) | 
 React Three Fiber (if used)
 
 ✨ Features
