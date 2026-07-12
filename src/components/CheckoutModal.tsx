@@ -27,8 +27,6 @@ interface OrderResult {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const DEMO_EMAIL = 'hamzaqureshi0128@gmail.com';
-
 async function sendEmail(payload: Record<string, unknown>) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
     method: 'POST',
@@ -119,15 +117,14 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
       return;
     }
 
-    // Send confirmation email to demo address (Resend free plan limitation)
+    // Send confirmation email
     try {
       await sendEmail({
         type: 'confirmation',
-        to: DEMO_EMAIL,
+        to: email,
         orderDetails: {
           orderNumber,
           name,
-          customerEmail: email,
           items: lines.map((l) => ({ name: l.item.name, qty: l.qty, price: l.item.price })),
           subtotal,
           deliveryFee,
@@ -167,7 +164,7 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
           />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <motion.div
-              className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-coal/95 backdrop-blur-2xl"
+              className="relative flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/10 bg-coal/95 backdrop-blur-2xl"
               initial={{ opacity: 0, scale: 0.92, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 30 }}
@@ -184,7 +181,7 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                 <X className="h-4 w-4" />
               </button>
 
-              <div className="max-h-[88vh] overflow-y-auto no-scrollbar">
+              <div className="overflow-y-auto overscroll-contain">
                 {/* === STEP: DETAILS === */}
                 {step === 'details' && (
                   <div className="p-7">
@@ -303,29 +300,20 @@ export function CheckoutModal({ isOpen, onClose, onAuthRequired }: CheckoutModal
                       </button>
                     </div>
 
-                    <AnimatePresence initial={false}>
-                      {payment === 'bank' && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mb-6 overflow-hidden"
-                        >
-                          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-amber">Bank Details</p>
-                            <div className="space-y-1.5 font-sans text-xs text-white/60">
-                              <p>Bank: <span className="text-cream">Habib Bank Limited (HBL)</span></p>
-                              <p>Account: <span className="text-cream">Pizza Town Sukkur</span></p>
-                              <p>Account #: <span className="text-cream">0012-3456789-001</span></p>
-                              <p>IBAN: <span className="text-cream">PK36 HABB 0000 1234 5678 9001</span></p>
-                            </div>
-                            <p className="mt-3 font-sans text-[10px] text-white/30">
-                              Please transfer the total amount and keep your receipt. Your order will be confirmed once payment is verified.
-                            </p>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {payment === 'bank' && (
+                      <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-amber">Bank Details</p>
+                        <div className="space-y-1.5 font-sans text-xs text-white/60">
+                          <p>Bank: <span className="text-cream">Habib Bank Limited (HBL)</span></p>
+                          <p>Account: <span className="text-cream">Pizza Town Sukkur</span></p>
+                          <p>Account #: <span className="text-cream">0012-3456789-001</span></p>
+                          <p>IBAN: <span className="text-cream">PK36 HABB 0000 1234 5678 9001</span></p>
+                        </div>
+                        <p className="mt-3 font-sans text-[10px] text-white/30">
+                          Please transfer the total amount and keep your receipt. Your order will be confirmed once payment is verified.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="mb-3 font-sans text-[10px] uppercase tracking-wider text-white/40">Order Summary</p>

@@ -9,10 +9,6 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "re_Fc1tCHZW_7U3WEUz5cRhgXVZtqxd2pxUA";
 const FROM_EMAIL = "onboarding@resend.dev";
 
-// Demo mode: Resend free plan without a verified domain can only send to the
-// account owner's email. All emails go here regardless of the `to` field.
-const DEMO_EMAIL = "hamzaqureshi0128@gmail.com";
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -27,7 +23,6 @@ Deno.serve(async (req: Request) => {
       orderDetails?: {
         orderNumber: string;
         name: string;
-        customerEmail?: string;
         items: { name: string; qty: number; price: number }[];
         subtotal: number;
         deliveryFee: number;
@@ -38,15 +33,12 @@ Deno.serve(async (req: Request) => {
       };
     };
 
-    if (!type) {
+    if (!to || !type) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: type" }),
+        JSON.stringify({ error: "Missing required fields (type, to)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Always send to the demo email — Resend free plan limitation
-    const recipient = DEMO_EMAIL;
 
     let subject: string;
     let html: string;
@@ -58,17 +50,13 @@ Deno.serve(async (req: Request) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      subject = `Pizza Town Verification Code (for ${to})`;
+      subject = "Your Pizza Town Verification Code";
       html = `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0a0a0a; padding: 40px; border-radius: 24px;">
           <div style="text-align: center; margin-bottom: 32px;">
             <div style="font-size: 48px; margin-bottom: 8px;">🍕</div>
             <h1 style="color: #FFF8E7; font-size: 24px; margin: 0;">Pizza Town Sukkur</h1>
             <p style="color: #FFB100; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin: 4px 0 0;">Email Verification</p>
-          </div>
-          <div style="background: #141414; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
-            <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px;">Demo — verification for</p>
-            <p style="color: #FFF8E7; font-size: 14px; margin: 0;">${to}</p>
           </div>
           <p style="color: #FFF8E7; font-size: 16px; line-height: 1.6;">Hi there! Use the code below to verify your email and continue with your order.</p>
           <div style="text-align: center; margin: 32px 0;">
@@ -89,8 +77,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const customerEmail = orderDetails.customerEmail || to;
-
       const itemsHtml = orderDetails.items
         .map(
           (item) =>
@@ -98,18 +84,13 @@ Deno.serve(async (req: Request) => {
         )
         .join("");
 
-      subject = `Order Confirmed — ${orderDetails.orderNumber} (for ${customerEmail})`;
+      subject = `Order Confirmed — ${orderDetails.orderNumber}`;
       html = `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0a0a0a; padding: 40px; border-radius: 24px;">
           <div style="text-align: center; margin-bottom: 32px;">
             <div style="font-size: 48px; margin-bottom: 8px;">🍕</div>
             <h1 style="color: #FFF8E7; font-size: 24px; margin: 0;">Order Confirmed!</h1>
             <p style="color: #FFB100; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin: 4px 0 0;">Thank you, ${orderDetails.name}!</p>
-          </div>
-
-          <div style="background: #141414; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
-            <p style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px;">Demo — order placed by</p>
-            <p style="color: #FFF8E7; font-size: 14px; margin: 0;">${customerEmail}</p>
           </div>
 
           <div style="background: #141414; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
@@ -157,7 +138,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: `Pizza Town <${FROM_EMAIL}>`,
-        to: [recipient],
+        to: [to],
         subject,
         html,
       }),
@@ -173,7 +154,7 @@ Deno.serve(async (req: Request) => {
 
     const data = await res.json();
     return new Response(
-      JSON.stringify({ success: true, id: data.id, sentTo: recipient }),
+      JSON.stringify({ success: true, id: data.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
