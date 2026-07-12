@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = "hamzaqureshi0128@gmail.com";
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "re_Fc1tCHZW_7U3WEUz5cRhgXVZtqxd2pxUA";
+const FROM_EMAIL = "onboarding@resend.dev";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
