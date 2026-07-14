@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { Phone, Menu, X } from 'lucide-react';
+import { Menu, X, LogIn, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const links = [
   { label: 'Home', href: '#hero' },
@@ -11,9 +12,14 @@ const links = [
   { label: 'Visit', href: '#location' },
 ];
 
-export function Navbar() {
+interface NavbarProps {
+  onAuthClick: () => void;
+}
+
+export function Navbar({ onAuthClick }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
@@ -54,14 +60,31 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* order button */}
-          <a
-            href="tel:+923315633133"
-            className="hidden items-center gap-2 rounded-full bg-ember px-5 py-2.5 font-sans text-xs font-semibold text-cream shadow-[0_4px_20px_-4px_rgba(255,77,0,0.6)] transition-transform hover:scale-105 md:flex"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            Order
-          </a>
+          {/* auth button */}
+          {user ? (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ember/20">
+                  <User className="h-3.5 w-3.5 text-amber" />
+                </div>
+                <span className="max-w-[120px] truncate font-sans text-xs text-cream">{user.email}</span>
+              </div>
+              <button
+                onClick={signOut}
+                className="rounded-full border border-white/10 px-4 py-2 font-sans text-xs font-medium text-white/60 transition-colors hover:border-ember/40 hover:text-ember"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onAuthClick}
+              className="hidden items-center gap-2 rounded-full bg-ember px-5 py-2.5 font-sans text-xs font-semibold text-cream shadow-[0_4px_20px_-4px_rgba(255,77,0,0.6)] transition-transform hover:scale-105 md:flex"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              Login
+            </button>
+          )}
 
           {/* mobile toggle */}
           <button
@@ -96,15 +119,32 @@ export function Navbar() {
                 {l.label}
               </motion.a>
             ))}
-            <motion.a
-              href="tel:+923315633133"
-              className="mt-4 flex items-center gap-2 rounded-full bg-ember px-8 py-4 font-sans text-sm font-semibold text-cream"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: links.length * 0.08 }}
-            >
-              <Phone className="h-4 w-4" /> Order Now
-            </motion.a>
+            {user ? (
+              <motion.div
+                className="flex flex-col items-center gap-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: links.length * 0.08 }}
+              >
+                <span className="font-sans text-sm text-white/50">{user.email}</span>
+                <button
+                  onClick={() => { signOut(); setOpen(false); }}
+                  className="flex items-center gap-2 rounded-full border border-white/15 px-8 py-4 font-sans text-sm font-semibold text-cream"
+                >
+                  Sign Out
+                </button>
+              </motion.div>
+            ) : (
+              <motion.button
+                onClick={() => { setOpen(false); onAuthClick(); }}
+                className="mt-4 flex items-center gap-2 rounded-full bg-ember px-8 py-4 font-sans text-sm font-semibold text-cream"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: links.length * 0.08 }}
+              >
+                <LogIn className="h-4 w-4" /> Login
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
