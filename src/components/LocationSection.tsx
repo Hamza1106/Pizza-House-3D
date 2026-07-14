@@ -22,7 +22,7 @@ export function LocationSection() {
         >
           <p className="mb-3 font-sans text-[11px] uppercase tracking-[0.4em] text-amber">Find Us</p>
           <h2 className="font-display text-4xl font-bold tracking-tight text-cream sm:text-6xl">
-            Visit <span className="text-gradient-ember">Pizza Town</span>
+            Visit <span className="text-gradient-ember">Pizza House</span>
           </h2>
         </motion.div>
 

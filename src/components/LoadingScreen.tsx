@@ -117,7 +117,7 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
           </div>
 
           <div className="font-display text-3xl font-bold tracking-tight text-cream sm:text-4xl">
-            PIZZA <span className="text-gradient-ember">TOWN</span>
+            PIZZA <span className="text-gradient-ember">HOUSE</span>
           </div>
           <div className="mt-1 font-sans text-[11px] uppercase tracking-ultra text-white/40">
             Sukkur

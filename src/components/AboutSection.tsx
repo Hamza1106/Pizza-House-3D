@@ -52,7 +52,7 @@ export function AboutSection() {
         >
           <p className="mb-3 font-sans text-[11px] uppercase tracking-[0.4em] text-amber">Our Story</p>
           <h2 className="font-display text-4xl font-bold tracking-tight text-cream sm:text-6xl">
-            About <span className="text-gradient-ember">Pizza Town</span>
+            About <span className="text-gradient-ember">Pizza House</span>
           </h2>
         </motion.div>
 

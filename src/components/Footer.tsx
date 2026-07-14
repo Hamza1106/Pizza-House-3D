@@ -12,9 +12,9 @@ export function Footer() {
             <div className="mb-4 flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-ember to-amber text-xl">
                 🍕
-              </div>
+              </div>  
               <div>
-                <p className="font-display text-lg font-bold tracking-tight text-cream">PIZZA TOWN</p>
+                <p className="font-display text-lg font-bold tracking-tight text-cream">PIZZA HOUSE</p>
                 <p className="font-sans text-[9px] uppercase tracking-[0.3em] text-white/40">Sukkur</p>
               </div>
             </div>

@@ -31,12 +31,12 @@ export function Navbar() {
       >
         <div className={`mx-auto flex max-w-7xl items-center justify-between px-6 transition-all duration-500 ${scrolled ? 'py-3' : 'py-5'}`}>
           {/* logo */}
-          <a href="#hero" className="flex items-center gap-2">
+          <a href="#hero" className="flex items-center gap-2">  
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-ember to-amber text-lg">
               🍕
             </div>
             <div className="leading-none">
-              <p className="font-display text-sm font-bold tracking-tight text-cream">PIZZA TOWN</p>
+              <p className="font-display text-sm font-bold tracking-tight text-cream">PIZZA HOUSE</p>
               <p className="font-sans text-[8px] uppercase tracking-[0.3em] text-white/40">Sukkur</p>
             </div>
           </a>
